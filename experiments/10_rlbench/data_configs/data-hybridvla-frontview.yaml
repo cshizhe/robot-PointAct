@@ -1,0 +1,14 @@
+mm_datasets:
+
+lerobot_datasets:
+
+  - repo_id: hybridvla_10tasks_train_keysteps
+    root: robot_data/rlbench/lerobot_point_lmdb
+    class_name: LeRobotDataset
+    select_video_keys: [observation.images.front_image]
+    video_key_ids_for_vlm: [0]
+    select_state_keys: [observation.state]
+    select_action_keys: [action]
+    converted_rot_type: rot6d # euler, rot6d
+    is_delta_action: False
+    state_action_norm_file: robot_data/rlbench/lerobot_point_lmdb/hybridvla_10tasks_train_keysteps/robot_state_action_stats/rot6d.json

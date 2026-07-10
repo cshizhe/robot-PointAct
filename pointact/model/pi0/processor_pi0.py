@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+
+# Copyright 2025 Physical Intelligence and The HuggingFace Inc. team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import json
+
+import numpy as np
+import torch
+from easydict import EasyDict
+from lerobot.constants import ACTION, OBS_IMAGES, OBS_STATE
+from torch.nn.utils.rnn import pad_sequence
+from transformers import AutoTokenizer
+from transformers.processing_utils import ProcessorMixin
+
+from pointact.utils.rotation import convert_rotation
+from pointact.utils.torch_utils import pad_vector
+
+from .modeling_pi0 import resize_with_pad_torch
+
+
+class PI0Processor(ProcessorMixin):
+    """PI0 processor with PI0 mean/std normalization."""
+
+    @classmethod
+    def get_attributes(cls):
+        return ["tokenizer"]
+
+    def __init__(
+        self,
+        tokenizer=None,
+        image_resolution: tuple[int, int] = (224, 224),
+        robot_state_action_norm_file: str | None = None,
+        state_action_norm: dict | None = None,
+        robot_config: dict | None = None,
+        tokenizer_name: str = "google/paligemma-3b-pt-224",
+        chat_template: str | None = None,
+    ):
+        if tokenizer is None:
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        super().__init__(tokenizer=tokenizer, chat_template=chat_template)
+
+        self.image_resolution = tuple(image_resolution)
+        self.tokenizer_name = tokenizer_name
+        self.robot_config = robot_config
+
+        if state_action_norm is not None:
+            self.state_action_norm = self._to_numpy(state_action_norm)
+            self.robot_state_action_norm_file = robot_state_action_norm_file
+        elif robot_state_action_norm_file is not None:
+            self.robot_state_action_norm_file = str(robot_state_action_norm_file)
+            with open(robot_state_action_norm_file, "r") as f:
+                self.state_action_norm = self._to_numpy(json.load(f))
+        else:
+            raise ValueError(
+                "PI0Processor requires robot_state_action_norm_file or state_action_norm "
+                "for mean/std state/action normalization."
+            )
+
+    @staticmethod
+    def _to_numpy(value):
+        if isinstance(value, dict):
+            return {k: PI0Processor._to_numpy(v) for k, v in value.items()}
+        return np.array(value, dtype=np.float32)
+
+    def _get_norm_stats(self, prefix: str) -> tuple[np.ndarray, np.ndarray]:
+        mean = self.state_action_norm[f"{prefix}_mean"]
+        std = self.state_action_norm[f"{prefix}_std"]
+        return mean, std
+
+    def _normalize_with_stats(self, value: np.ndarray, prefix: str) -> np.ndarray:
+        mean, std = self._get_norm_stats(prefix)
+        denom = np.maximum(std, 1e-6)
+        normalized = (value - mean) / denom
+        return normalized
+
+    def _unnormalize_with_stats(self, value: np.ndarray, prefix: str) -> np.ndarray:
+        mean, std = self._get_norm_stats(prefix)
+        unnormalized = value * std + mean
+        return unnormalized
+
+    def prepare_images(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Preprocess images for the model.
+
+        Images from LeRobot are typically in [V, C, H, W] format and normalized to [0, 1].
+        PaliGemma expects images in [B, V, C, H, W] format and normalized to [-1, 1].
+
+        Returns:
+            images: (V, C, H, W), [-1, 1]
+            img_masks: (V, ), 1 for real images
+        """
+        channels_first = images.shape[1] in (1, 3)
+        if channels_first:
+            spatial_shape = images.shape[2:4]
+        else:
+            spatial_shape = images.shape[1:3]
+            images = images.permute(0, 3, 1, 2) # (vhwc -> vchw)
+        images = images.to(torch.float32)
+
+        if tuple(spatial_shape) != tuple(self.image_resolution):
+            images = resize_with_pad_torch(images, *self.image_resolution)
+
+        images = images * 2.0 - 1.0
+
+        img_masks = torch.ones(
+            images.shape[:1],
+            dtype=torch.bool,
+            device=images.device,
+        )
+
+        return images, img_masks
+
+    def prepare_text_state(
+        self,
+        task: str,
+        state: torch.Tensor | None = None,
+    ) -> tuple[torch.LongTensor, torch.Tensor, torch.Tensor | None]:
+        """Build the PI0 language prompt.
+
+        PI0 consumes continuous state through the action expert, so unlike PI05 we
+        do not serialize state into text. The original LeRobot/OpenPI processor
+        only ensures that the task string ends with a newline. When state is
+        provided, return the normalized and padded state alongside the text.
+        """
+        full_prompt = task.strip()
+        if not full_prompt.endswith("\n"):
+            full_prompt = f"{full_prompt}\n"
+
+        text_inputs = self.tokenizer(full_prompt, add_special_tokens=False, return_tensors="pt")
+        text_ids = text_inputs["input_ids"][0]
+        text_masks = text_inputs["attention_mask"][0].bool()
+
+        if state is not None:
+            state = self.normalize_robot_state(state)
+        return text_ids, text_masks, state
+
+    def _extract_states(self, batch: dict, state_keys: list) -> torch.Tensor:
+        """Assume batch_size=1"""
+        states = []
+        for key in state_keys:
+            value = batch[key][0]
+            states.append(torch.from_numpy(value).float())
+        state = torch.cat(states, dim=-1)
+        return state
+
+    def normalize_robot_state(self, state: torch.Tensor):
+        state_np = state.numpy()
+        normed_state = self._normalize_with_stats(state_np, "state")
+        normed_state = torch.from_numpy(normed_state).to(dtype=state.dtype, device=state.device)
+        normed_state = pad_vector(normed_state, self.robot_config["max_state_dim"])
+        return normed_state
+
+    def normalize_robot_action(self, action: torch.Tensor):
+        action_np = action.numpy()
+        normed_action = self._normalize_with_stats(action_np, "action")
+        normed_action = torch.from_numpy(normed_action).to(dtype=action.dtype, device=action.device)
+        normed_action = pad_vector(normed_action, self.robot_config["max_action_dim"])
+        return normed_action
+
+    def unnormalize_robot_action(self, action: np.ndarray):
+        action_mean, _ = self._get_norm_stats("action")
+        action = action[..., :action_mean.shape[-1]]
+        return self._unnormalize_with_stats(action, "action")
+
+    @torch.no_grad()
+    def select_action(self, model, batch: dict, pred_rot_type: str | None = None, **kwargs):
+        """
+        Assume batch_size=1
+        """
+        device = next(model.parameters()).device
+
+        repo_id = batch.get("repo_id", None) # list of str
+        if repo_id is None or len(repo_id) == 0 or repo_id[0] is None:
+            repo_id = list(self.robot_config["select_video_keys"].keys())[0]
+        else:
+            repo_id = repo_id[0]
+
+        image_keys = self.robot_config["select_video_keys"][repo_id]
+        images = [batch[key][0] for key in image_keys]
+        # Convert PIL image to tensor
+        images = np.stack([np.asarray(image) / 255. for image in images], 0)
+        images = torch.from_numpy(images)
+        images, img_masks = self.prepare_images(images)
+        if images.ndim == 4:
+            images = images.unsqueeze(0)
+            img_masks = img_masks.unsqueeze(0)
+        images = images.to(device)
+        img_masks = img_masks.to(device)
+
+        tasks = batch["task"]
+        if isinstance(tasks, str):
+            tasks = [tasks]
+
+        state_keys = self.robot_config["select_state_keys"][repo_id]
+        states = self._extract_states(batch, state_keys)
+
+        text_ids = []
+        text_masks = []
+        for task in tasks:
+            ids, masks, states = self.prepare_text_state(task, state=states)
+            text_ids.append(ids)
+            text_masks.append(masks)
+        text_ids = pad_sequence(text_ids, batch_first=True, padding_value=0).to(device)
+        text_masks = pad_sequence(text_masks, batch_first=True, padding_value=0).to(device)
+
+        if states.ndim == 1:
+            states = states.unsqueeze(0)
+        states = states.to(device)
+
+        actions = model.sample_actions(
+            text_ids=text_ids,
+            text_masks=text_masks,
+            images=images,
+            img_masks=img_masks,
+            states=states,
+            **kwargs,
+        ).cpu().numpy()
+
+        actions = self.unnormalize_robot_action(actions)
+
+        if pred_rot_type == "euler":
+            quat = convert_rotation(
+                actions[..., 3:6], "euler", "quat", euler_order_src="xyz", quat_order_dst="xyzw",
+            )
+            actions = np.concatenate([actions[..., :3], quat, actions[..., 6:]], axis=-1)
+        elif pred_rot_type == "rot6d":
+            quat = convert_rotation(actions[..., 3:9], "rot6d", "quat", quat_order_dst="xyzw")
+            actions = np.concatenate([actions[..., :3], quat, actions[..., 9:]], axis=-1)
+
+        return EasyDict({ACTION: actions})

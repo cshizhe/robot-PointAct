@@ -89,7 +89,7 @@ bash experiments/10_rlbench/train_eo1_point.sh
 # QwenGR00T
 bash experiments/10_rlbench/train_vla2.sh
 # QwenGR00T-Point
-bash experiments/10_rlbench/train_vla2.sh
+bash experiments/10_rlbench/train_vla2_point.sh
 # Pi0
 bash experiments/10_rlbench/train_pi0.sh
 # PointACT
@@ -105,3 +105,17 @@ We use client-server evaluation so the policy can run in the `pointact` environm
 bash experiments/10_rlbench/eval_hybridvla_10tasks.sh <YOUR-EXPR-DIR> <CKPT-STEP> <SEED> <PRED-ROTATION-TYPE> "--args.num_episodes 100"
 ```
 
+## Results
+
+It is normal that success rates vary by about 1-5% across repeated evaluations.
+After code optimization especially for EO1-Point which is unstable, we obtain better results than those reported in the paper :
+
+| Model | Trainable Parameters | SR | 
+| --- | --- | --- | 
+| Pi0 (freeze vision encoder) | 2,720,744,480 | 68.1 |
+| EO1 (freeze vision encoder) | 3,139,696,928 | 69.5 |
+| EO1-Point (freeze vision encoder) | 3,348,939,040 | 73.5 |
+| QwenGR00T (freeze VLM) | 1,068,806,144 | 52.4 |
+| QwenGR00T-Point (freeze VLM) | 1,278,048,256 | 71.5 |
+| PointACT (concerto, clf, point cloud only, freeze VLM) | 320,024,389 | 86.3 |
+| PointACT (utonia, clf, point cloud only, freeze VLM) | 213,370,207 | 87.6 |

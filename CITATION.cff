@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you find PointAct useful in your research, or if you use this code, please cite it as below."
+title: "PointACT: Vision-Language-Action Models with Multi-Scale Point-Action Interaction"
+type: software
+authors:
+  - family-names: Chen
+    given-names: Shizhe
+  - family-names: Pacaud
+    given-names: Paul
+  - family-names: Schmid
+    given-names: Cordelia
+license: Apache-2.0
+repository-code: "https://github.com/cshizhe/robot-PointAct"
+url: "https://cshizhe.github.io/projects/pointact.html"
+preferred-citation:
+  type: conference-paper
+  title: "PointACT: Vision-Language-Action Models with Multi-Scale Point-Action Interaction"
+  authors:
+    - family-names: Chen
+      given-names: Shizhe
+    - family-names: Pacaud
+      given-names: Paul
+    - family-names: Schmid
+      given-names: Cordelia
+  conference:
+    name: "Robotics: Science and Systems"
+  year: 2026

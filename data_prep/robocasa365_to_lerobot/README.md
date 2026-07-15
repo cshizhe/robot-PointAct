@@ -85,6 +85,6 @@ lerobot_point_lmdb/OpenDrawer/
 - `convert.py` writes those replay point clouds into the final `points_3views/` LMDB.
 
 
-## Troubleshotting
+## Troubleshooting
 
 Some robocasa tasks contain transparent objects, such as the bottle in `PickPlaceCounterToCabinet`. The depth is not accurate.

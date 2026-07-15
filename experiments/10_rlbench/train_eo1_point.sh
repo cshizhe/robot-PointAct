@@ -84,7 +84,7 @@ accelerate launch $ACCELERATE_ARGS scripts/train.py \
     --max_grad_norm 3 \
     --use_robot_state True \
     --ctx_embed_size 512 \
-    --ptv3_backend utonia \
+    --ptv3_backend concerto \
     --ptv3_patch_size 1024 \
     --ptv3_enc_mode True \
     --ptv3_enc_channels 64 128 256 512 768 \

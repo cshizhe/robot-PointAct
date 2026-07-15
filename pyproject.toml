@@ -1,0 +1,159 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pointact"
+version = "0.1.0"
+description = "Official implementation of PointAct"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Shizhe Chen", email = "cshizhe@gmail.com" },
+]
+keywords = ["embodied-ai", "robot-learning", "vision-language-action", "point-cloud"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Hugging Face, LeRobot, and training framework
+    "datasets>=2.19.0,<=3.6.0",
+    "huggingface-hub[cli]>=1.0.0",
+    "lerobot>=0.3.3,<=0.3.4",
+    "transformers==5.5.4",
+    "accelerate>=1.10.1",
+
+    # Numeric, vision, and point-cloud utilities
+    "einops>=0.8.0",
+    "numpy==1.26.4",
+    "opencv-python-headless>=4.9.0",
+    "open3d==0.18.0",
+    "av>=14.2.0",
+    "scipy",
+    "torchvision>=0.21.0",
+
+    # Data formats, CLI, and server-client IPC
+    "jsonlines>=4.0.0",
+    "lmdb",
+    "msgpack",
+    "msgpack_numpy",
+    "pyzmq",
+    "tyro",
+
+    # PyTorch runtime
+    "torch==2.7.0",
+    "torchcodec>=0.2.1; sys_platform != 'win32' and (sys_platform != 'linux' or (platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')) and (sys_platform != 'darwin' or platform_machine != 'x86_64')",
+
+    # Model and processor helpers
+    "packaging>=24.2",
+    "qwen_vl_utils>=0.0.11",
+    "timm==1.0.9",
+    "ujson>=5.11.0",
+    "easydict",
+
+    # TensorBoard logging for training scripts
+    "tensorboardX",
+]
+# Optional dependencies
+[project.optional-dependencies]
+
+# Development
+test = ["pytest>=8.1.0", "pytest-timeout>=2.4.0", "pytest-cov>=5.0.0", "mock-serial>=0.0.1 ; sys_platform != 'win32'"]
+
+# All
+all = [
+    "pointact[test]"
+]
+
+# ---------------- Tool Configurations ----------------
+[tool.setuptools.packages.find]
+exclude = [
+    "*.tests",
+    "*.tests.*",
+    "tests.*",
+    "tests",
+    "getting_started*",
+    "scripts*",
+    "*checkpoints*",
+    "outputs*",
+    "assets*",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 110
+exclude = ["tests/artifacts/**/*.safetensors", "*_pb2.py", "*_pb2_grpc.py", "assets/*", "pointact/qwen2_5_vl/*"]
+
+[tool.ruff.lint]
+# E, W: pycodestyle errors and warnings
+# F: PyFlakes
+# I: isort
+# UP: pyupgrade
+# B: flake8-bugbear (good practices, potential bugs)
+# C4: flake8-comprehensions (more concise comprehensions)
+# A: flake8-builtins (shadowing builtins)
+# SIM: flake8-simplify
+# RUF: Ruff-specific rules
+# D: pydocstyle (for docstring style/formatting)
+# S: flake8-bandit (some security checks, complements Bandit)
+# T20: flake8-print (discourage print statements in production code)
+# N: pep8-naming
+# TODO: Uncomment rules when ready to use
+select = [
+    "E", "W", "F", "I", "B", "C4", "T20", "N" # "SIM", "A", "S", "D", "RUF", "UP"
+]
+ignore = [
+    "E501", # Line too long
+    "T201", # Print statement found
+    "T203", # Pprint statement found
+    "B008", # Perform function call in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["pointact"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    "experinments",
+    "tools",
+]
+skips = ["B101", "B311", "B404", "B603", "B615"]
+
+[tool.typos]
+default.extend-ignore-re = [
+    "(?Rm)^.*(#|//)\\s*spellchecker:disable-line$",                      # spellchecker:disable-line
+    "(?s)(#|//)\\s*spellchecker:off.*?\\n\\s*(#|//)\\s*spellchecker:on", # spellchecker:<on|off>
+]
+default.extend-ignore-identifiers-re = [
+    # Add individual words here to ignore them
+    "2nd",
+    "pn",
+    "ser",
+    "ein",
+    "thw",
+    "THW",
+]

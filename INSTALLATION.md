@@ -67,6 +67,10 @@ hf download --repo-type model Pointcept/Utonia \
 
 # Qwen 2.5
 hf download --repo-type model Qwen/Qwen2.5-VL-3B-Instruct
+
+# Pi0, Pi05
+hf download --repo-type model lerobot/pi0_base
+hf download --repo-type model lerobot/pi05_base
 ```
 
 

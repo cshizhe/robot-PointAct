@@ -1,0 +1,13 @@
+mm_datasets:
+
+lerobot_datasets:
+
+  - repo_id: libero_object_no_noops
+    root: robot_data/libero/lerobot_point_lmdb
+    class_name: LeRobotDataset
+    select_video_keys: [observation.images.front_image]
+    select_state_keys: [observation.state]
+    select_action_keys: [action]
+    converted_rot_type: rot6d # euler, rot6d
+    is_delta_action: True
+    state_action_norm_file: robot_data/libero/lerobot_point_lmdb/libero_object_no_noops/robot_state_action_stats/rot6d.json

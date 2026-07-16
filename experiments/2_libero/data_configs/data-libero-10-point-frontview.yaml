@@ -11,11 +11,7 @@ lerobot_datasets:
     select_action_keys: [action]
     converted_rot_type: rot6d # euler, rot6d
     is_delta_action: True
-    points_workspace: {
-      'X_BBOX': [-0.5, 0.5],      # 0 is the robot base
-      'Y_BBOX': [-0.5, 0.5],          # 0 is the robot base 
-      'Z_BBOX': [0.91, 2],      # 0 is the floor, 0.91 table height
-    }
+    points_workspace: null # different for some tasks (already preprocessed) 
     max_npoints: 4096
     augment_pc_rot: 30
     point_cloud_dirname: points_frontview

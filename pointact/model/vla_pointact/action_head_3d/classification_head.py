@@ -205,7 +205,7 @@ class PointMoEClassificationActionHeadBase(nn.Module):
             reduction="none"
         )
         rot_loss = einops.rearrange(rot_loss, "(n t c) -> n t c", c=3, n=batch_size) 
-        rot_loss = torch.sum(rot_loss * action_masks.unsqueeze(-1)) / action_masks.sum() / 3
+        rot_loss = torch.sum(rot_loss * action_masks.unsqueeze(-1)) / action_masks.sum()
 
         # openness state loss
         open_loss = F.binary_cross_entropy_with_logits(
@@ -395,7 +395,7 @@ class PointCenteredClassificationActionHeadBase(nn.Module):
             reduction="none"
         )
         pos_loss = einops.rearrange(pos_loss, "(n t c) -> n t c", c=3, n=batch_size)
-        pos_loss = torch.sum(pos_loss * action_masks.unsqueeze(-1)) / action_masks.sum() / 3
+        pos_loss = torch.sum(pos_loss * action_masks.unsqueeze(-1)) / action_masks.sum()
 
         # rotation loss
         rot_loss = F.cross_entropy(
@@ -404,7 +404,7 @@ class PointCenteredClassificationActionHeadBase(nn.Module):
             reduction="none"
         )
         rot_loss = einops.rearrange(rot_loss, "(n t c) -> n t c", c=3, n=batch_size) 
-        rot_loss = torch.sum(rot_loss * action_masks.unsqueeze(-1)) / action_masks.sum() / 3
+        rot_loss = torch.sum(rot_loss * action_masks.unsqueeze(-1)) / action_masks.sum()
 
         # openness state loss
         open_loss = F.binary_cross_entropy_with_logits(

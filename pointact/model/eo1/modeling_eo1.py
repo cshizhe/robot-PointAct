@@ -349,7 +349,7 @@ class EO1VisionFlowMatchingModel(PreTrainedModel, GenerationMixin):
                 valid_loss_mask = valid_loss_mask & (~action_is_pad).reshape(-1, 1)
 
             valid_loss_mask = valid_loss_mask.to(losses.dtype)
-            action_loss = (losses * valid_loss_mask).sum() / valid_loss_mask.expand_as(losses).sum().clamp_min(1)
+            action_loss = (losses * valid_loss_mask).sum() / valid_loss_mask.sum().clamp_min(1)
             loss = action_loss
 
         logits = None

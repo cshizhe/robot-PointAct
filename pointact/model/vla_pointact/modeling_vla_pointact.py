@@ -534,11 +534,11 @@ class VLAEncDec3DRegressionModel(VLAEncDec3DBaseModel):
         action_mask = action_is_pad.logical_not()
         action_losses = action_losses * action_mask.unsqueeze(-1)
         valid_action_count = action_mask.sum().clamp_min(1).to(action_losses.dtype)
-        action_loss = action_losses.sum() / (valid_action_count * action_losses.size(-1))
+        action_loss = action_losses.sum() / valid_action_count
 
         # TODO: here we assume using rot6d rotation
-        pos_loss = action_losses[..., :3].sum() / (valid_action_count * 3)
-        rot_loss = action_losses[..., 3:9].sum() / (valid_action_count * 6)
+        pos_loss = action_losses[..., :3].sum() / valid_action_count
+        rot_loss = action_losses[..., 3:9].sum() / valid_action_count
         open_loss = action_losses[..., 9].sum() / valid_action_count
         
         return action_loss, (pos_loss, rot_loss, open_loss)
@@ -862,11 +862,11 @@ class VLAEncDec3DWithActionRegressionModel(VLAEncDec3DBaseModel):
         action_mask = action_is_pad.logical_not()
         action_losses = action_losses * action_mask.unsqueeze(-1)
         valid_action_count = action_mask.sum().clamp_min(1).to(action_losses.dtype)
-        action_loss = action_losses.sum() / (valid_action_count * action_losses.size(-1))
+        action_loss = action_losses.sum() / valid_action_count
         
         # TODO: here we assume using rot6d rotation
-        pos_loss = action_losses[..., :3].sum() / (valid_action_count * 3)
-        rot_loss = action_losses[..., 3:9].sum() / (valid_action_count * 6)
+        pos_loss = action_losses[..., :3].sum() / valid_action_count
+        rot_loss = action_losses[..., 3:9].sum() / valid_action_count
         open_loss = action_losses[..., 9].sum() / valid_action_count
         #print(action_loss, pos_loss, rot_loss, open_loss)
         
